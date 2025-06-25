@@ -26,16 +26,16 @@ enum CharCode: int
     case HYPHEN_MINUS         = 0x2D;
     case FULL_STOP            = 0x2E;
     case SOLIDUS              = 0x2F;
-    case DIGIT_0              = 0x30;
-    case DIGIT_1              = 0x31;
-    case DIGIT_2              = 0x32;
-    case DIGIT_3              = 0x33;
-    case DIGIT_4              = 0x34;
-    case DIGIT_5              = 0x35;
-    case DIGIT_6              = 0x36;
-    case DIGIT_7              = 0x37;
-    case DIGIT_8              = 0x38;
-    case DIGIT_9              = 0x39;
+    case DIGIT_ZERO           = 0x30;
+    case DIGIT_ONE            = 0x31;
+    case DIGIT_TWO            = 0x32;
+    case DIGIT_THREE          = 0x33;
+    case DIGIT_FOUR           = 0x34;
+    case DIGIT_FIVE           = 0x35;
+    case DIGIT_SIX            = 0x36;
+    case DIGIT_SEVEN          = 0x37;
+    case DIGIT_EIGHT          = 0x38;
+    case DIGIT_NINE           = 0x39;
     case COLON                = 0x3A;
     case SEMICOLON            = 0x3B;
     case LESS_THAN_SIGN       = 0x3C;
@@ -105,4 +105,125 @@ enum CharCode: int
     case vERTICAL_LINE        = 0x7C;
     case R_CURLY_BRACKET      = 0x7D;
     case TILDE                = 0x7E;
+
+    public function isLineFeed()
+    {
+        return $this == self::LINE_FEED;
+    }
+}
+
+class Scanner
+{
+    /**
+     * The program source code
+     *
+     * @var string
+     */
+    private string $source;
+
+    /**
+     * Current postion of the scanner in the source code
+     *
+     * @var int
+     */
+    private int $position;
+
+    /**
+     * Current line of the scanner position in the source code
+     *
+     * @var int
+     */
+    private int $line;
+
+    /**
+     * Current column of the scanner position in the source code
+     *
+     * @var int
+     */
+    private int $column;
+
+    /**
+     * The source code char length
+     *
+     * @var int
+     */
+    private int $length;
+
+    /**
+     * The current dirty lexeme
+     *
+     * @var string
+     */
+    private string $lexeme;
+
+    /**
+     * The current dirty lexeme line
+     *
+     * @var int
+     */
+    private int $lexemeLine;
+
+    private int $lexemeColumn;
+
+    public function __construct($source)
+    {
+        $this->source = $source;
+        $this->position = 0;
+        $this->lexemeLine   = $this->line   = 1;
+        $this->lexemeColumn = $this->column = 1;
+        $this->length = strlen($source);
+        $this->lexeme = "";
+    }
+
+    public function consume($shouldSkip = false)
+    {
+        $line = $this->line;
+        $column = $this->column;
+        if ($this->position < $this->length) {
+            $charCode = $this->peek();
+            $char = $this->source[$this->position++];
+            if ($charCode && $charCode->isLineFeed()) {
+                $this->line++;
+                $this->column = 1;
+            } else {
+                $this->column++;
+            }
+
+            if (!$shouldSkip) {
+                $this->lexeme .= $char;
+            } else {
+                $this->getLexemeInfo();
+            }
+            return $char;
+        }
+        return null;
+    }
+
+    public function getLexemeInfo()
+    {
+        $t = [
+            'lexeme' => $this->lexeme,
+            'line' => $this->lexemeLine,
+            'column' => $this->lexemeColumn,
+        ];
+        $this->lexeme = "";
+        $this->lexemeLine = $this->line;
+        $this->lexemeColumn = $this->column;
+
+        return $t;
+    }
+
+    public function isEof()
+    {
+        return $this->position >= $this->length;
+    }
+
+    public function peek($offset = 0)
+    {
+        $pos = $this->position + $offset;
+        if ($pos < $this->length) {
+            return CharCode::tryFrom(ord($this->source[$pos]));
+        }
+        return null;
+    }
 }
