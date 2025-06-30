@@ -106,9 +106,19 @@ enum CharCode: int
     case R_CURLY_BRACKET      = 0x7D;
     case TILDE                = 0x7E;
 
+    public function getText()
+    {
+        return chr($this->value);
+    }
+
     public function isLineFeed()
     {
         return $this == self::LINE_FEED;
+    }
+
+    public function isWhitespace()
+    {
+        return ctype_space($this->getText());
     }
 }
 
@@ -175,13 +185,11 @@ class Scanner
         $this->lexeme = "";
     }
 
-    public function consume($shouldSkip = false)
+    public function consume()
     {
-        $line = $this->line;
-        $column = $this->column;
         if ($this->position < $this->length) {
             $charCode = $this->peek();
-            $char = $this->source[$this->position++];
+            $this->position++;
             if ($charCode && $charCode->isLineFeed()) {
                 $this->line++;
                 $this->column = 1;
@@ -189,20 +197,17 @@ class Scanner
                 $this->column++;
             }
 
-            if (!$shouldSkip) {
-                $this->lexeme .= $char;
-            } else {
-                $this->getLexemeInfo();
-            }
-            return $char;
+            $this->lexeme .= $charCode->getText();
+            return $charCode;
         }
+
         return null;
     }
 
     public function getLexemeInfo()
     {
-        $t = [
-            'lexeme' => $this->lexeme,
+        $i = [
+            'value' => $this->lexeme,
             'line' => $this->lexemeLine,
             'column' => $this->lexemeColumn,
         ];
@@ -210,7 +215,12 @@ class Scanner
         $this->lexemeLine = $this->line;
         $this->lexemeColumn = $this->column;
 
-        return $t;
+        return $i;
+    }
+
+    public function getPosition()
+    {
+        return ['line' => $this->line, 'column' => $this->column];
     }
 
     public function isEof()
@@ -225,5 +235,96 @@ class Scanner
             return CharCode::tryFrom(ord($this->source[$pos]));
         }
         return null;
+    }
+
+    public function skipWhitespace()
+    {
+        while (!$this->isEof()) {
+            if ($this->peek()->isWhitespace()) {
+                $this->consume();
+            } else {
+                break;
+            }
+        }
+        $this->getLexemeInfo();
+    }
+}
+
+/**
+ * Token Type enum
+ */
+enum TokenType: int
+{
+    case UNKNOWN = 0;
+    case COMMENT = 1;
+    case EOF     = 2;
+}
+
+class Lexer
+{
+    /**
+     * Lexer Scanner
+     *
+     * @var Scanner
+     */
+    private Scanner $scanner;
+
+    /**
+     * The source program tokens sequence
+     *
+     * @var array
+     */
+    private array $tokens;
+
+    public function __construct(string $source)
+    {
+        $this->scanner = new Scanner($source);
+        $this->tokens = [];
+    }
+
+    public function nextToken()
+    {
+        $cc = $this->scanner->peek();
+        $type = 0;
+
+        if ($cc == CharCode::SEMICOLON) {
+            return $this->scanComment();
+        }
+
+        return ['type' => $type,];
+    }
+
+    private function scanComment()
+    {
+        while (!$this->scanner->isEof() && !$this->scanner->peek()->isLineFeed()) {
+            $this->scanner->consume();
+        }
+        return array_merge([
+            'type' => TokenType::COMMENT->value,
+        ], $this->scanner->getLexemeInfo());
+    }
+
+    public function tokenize()
+    {
+        while (!$this->scanner->isEof()) {
+            $this->scanner->skipWhiteSpace();
+            if ($this->scanner->isEof()) {
+                break;
+            }
+
+            $token = $this->nextToken();
+            if ($token) {
+                $this->tokens[] = $token;
+            }
+        }
+        $position = $this->scanner->getPosition();
+        $this->tokens[] = [
+            'type' => TokenType::EOF->value,
+            'value' => '',
+            'line' => $position['line'],
+            'column' => $position['column'],
+        ];
+
+        return $this->tokens;
     }
 }
