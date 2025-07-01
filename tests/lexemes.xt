@@ -1,0 +1,7 @@
+---TEST---
+Basic Source string tokenization
+---SRC---
+; This is comment
+---EXPECT---
+TYPE: T_COMMENT, VALUE: ; This is comment, POSITION: [1 1]
+TYPE: T_EOF, VALUE: NULL, POSITION: [1 18]

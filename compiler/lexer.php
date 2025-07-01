@@ -204,6 +204,26 @@ class Scanner
         return null;
     }
 
+    public function getLine($num = null)
+    {
+        $src = "";
+        $num ??= $this->line;
+        $curr = 1;
+
+        if ($num < $curr) {
+            return $src;
+        }
+
+        foreach (explode("\n", $this->source) as $line) {
+            if ($num == $curr++) {
+                $src = "$line\n";
+                break;
+            }
+        }
+
+        return $src;
+    }
+
     public function getLexemeInfo()
     {
         $i = [
@@ -258,6 +278,72 @@ enum TokenType: int
     case UNKNOWN = 0;
     case COMMENT = 1;
     case EOF     = 2;
+    case RAISED  = 3;
+
+    public function format(array $token)
+    {
+        if (!isset($token['type']) || (self::tryFrom($token['type']) !== $this)) {
+            return '';
+        }
+        if (empty($token['value']) && (self::tryFrom($token['type']) !== self::EOF)) {
+            return '';
+        }
+        if (empty($token['line']) || empty($token['column'])) {
+            return '';
+        }
+
+        return join(
+            ", ",
+            [
+                "TYPE: {$this->getName()}",
+                ($this === self::EOF) ? "VALUE: NULL" : "VALUE: {$token['value']}",
+                "POSITION: [{$token['line']} {$token['column']}]",
+            ]
+        );
+    }
+
+    public function getName()
+    {
+        return "T_$this->name";
+    }
+
+    public function isError() {
+        return $this == self::RAISED;
+    }
+}
+
+class RaisedException extends Exception
+{
+    private bool $shouldDescribe;
+
+    public function __construct(string $title = "", bool $shouldDescribe = true)
+    {
+        $this->message = $title;
+        $this->shouldDescribe = $shouldDescribe;
+    }
+
+    public function getSummary(Lexer $lexer): string
+    {
+        $info = $lexer->getInfo();
+        $message = str_replace(
+            array_map(
+                fn ($k) => "%{{$k}}",
+                array_keys($info)
+            ),
+            array_values($info),
+            $this->message,
+        );
+        if ($this->shouldDescribe) {
+            $srcLine = $lexer->getCurrentLine();
+            $times = $info['column'] + strlen($info['line']) + 1;
+            $htimes = strlen($message);
+            $srcLineDescr = "\n{$info['line']}| $srcLine";
+            $hrLine = str_repeat("-", $htimes);
+            $errColPos = str_repeat(" ", $times)."^";
+            return "$message\n$hrLine$srcLineDescr$errColPos\n";
+        }
+        return $message;
+    }
 }
 
 class Lexer
@@ -282,16 +368,53 @@ class Lexer
         $this->tokens = [];
     }
 
+    public function generateTokensOut()
+    {
+        $tokens = $this->tokenize();
+        $tformatList = [];
+
+        foreach ($tokens as $token) {
+            $ttype = TokenType::tryFrom($token['type']);
+            if ($ttype && $ttype->isError()) {
+                $str = $token['value'];
+                break;
+            } elseif (!$ttype) {
+                continue;
+            }
+            $tformatList[] = $ttype->format($token);
+        }
+        return join("\n", $tformatList);
+    }
+
+    public function getInfo()
+    {
+        return array_merge($this->getPosition());
+    }
+
+    public function getCurrentLine()
+    {
+        return $this->getLine($this->getPosition()['line']);
+    }
+
+    public function getLine($num)
+    {
+        return $this->scanner->getLine($num);
+    }
+
+    public function getPosition()
+    {
+        return $this->scanner->getPosition();
+    }
+
     public function nextToken()
     {
         $cc = $this->scanner->peek();
-        $type = 0;
 
         if ($cc == CharCode::SEMICOLON) {
             return $this->scanComment();
         }
 
-        return ['type' => $type,];
+        throw new RaisedException("Unexpected character at line %{line}");
     }
 
     private function scanComment()
@@ -308,16 +431,29 @@ class Lexer
     {
         while (!$this->scanner->isEof()) {
             $this->scanner->skipWhiteSpace();
+
             if ($this->scanner->isEof()) {
                 break;
             }
 
-            $token = $this->nextToken();
+            try {
+                $token = $this->nextToken();
+            } catch (RaisedException $re) {
+                $this->tokens = [];
+                $pos = $this->getPosition();
+                $this->tokens[] = [
+                    'type' => TokenType::RAISED->value,
+                    'value' => $re->getSummary($this),
+                    'line' => $pos['line'],
+                    'column' => $pos['column'],
+                ];
+                return $this->tokens;
+            }
             if ($token) {
                 $this->tokens[] = $token;
             }
         }
-        $position = $this->scanner->getPosition();
+        $position = $this->getPosition();
         $this->tokens[] = [
             'type' => TokenType::EOF->value,
             'value' => '',
