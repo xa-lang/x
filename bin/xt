@@ -1,0 +1,31 @@
+#!/usr/bin/env php
+<?php
+
+define('BASE_DIR', dirname(__DIR__));
+
+require_once BASE_DIR . '/compiler/lexer.php';
+require_once BASE_DIR . '/testing.php';
+
+function printUsage()
+{
+    echo "Usage: xt [test_file.xt]\n";
+    echo "Runs xlang tests in tests/ directory or a specific test file.\n";
+    exit(1);
+}
+
+$testDir = 'tests';
+$testFile = null;
+
+if ($argc > 2) {
+    printUsage();
+    exit(1);
+} elseif ($argc == 2) {
+    $testFile = $argv[1];
+    if (!preg_match('/\.xt$/', $testFile)) {
+        echo "Error: '$testFile' is not a .xt file\n";
+        exit(1);
+    }
+}
+
+$tester = new Testing($testDir);
+exit($tester->runTests($testFile));
