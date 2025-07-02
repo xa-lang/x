@@ -240,6 +240,11 @@ class Scanner
 
     public function getPosition()
     {
+        return $this->position;
+    }
+
+    public function getPoint()
+    {
         return ['line' => $this->line, 'column' => $this->column];
     }
 
@@ -297,7 +302,7 @@ enum TokenType: int
             [
                 "TYPE: {$this->getName()}",
                 ($this === self::EOF) ? "VALUE: NULL" : "VALUE: {$token['value']}",
-                "POSITION: [{$token['line']} {$token['column']}]",
+                "POINT: [{$token['line']} {$token['column']}]",
             ]
         );
     }
@@ -325,19 +330,24 @@ class RaisedException extends Exception
     public function getSummary(Lexer $lexer): string
     {
         $info = $lexer->getInfo();
+        $infoList = array_merge(
+            $info['point'],
+            $info
+        );
+        unset($infoList['point']);
         $message = str_replace(
             array_map(
                 fn ($k) => "%{{$k}}",
-                array_keys($info)
+                array_keys($infoList)
             ),
-            array_values($info),
+            array_values($infoList),
             $this->message,
         );
         if ($this->shouldDescribe) {
             $srcLine = $lexer->getCurrentLine();
-            $times = $info['column'] + strlen($info['line']) + 1;
+            $times = $infoList['column'] + strlen($infoList['line']) + 1;
             $htimes = strlen($message);
-            $srcLineDescr = "\n{$info['line']}| $srcLine";
+            $srcLineDescr = "\n{$infoList['line']}| $srcLine";
             $hrLine = str_repeat("-", $htimes);
             $errColPos = str_repeat(" ", $times)."^";
             return "$message\n$hrLine$srcLineDescr$errColPos\n";
@@ -388,12 +398,15 @@ class Lexer
 
     public function getInfo()
     {
-        return array_merge($this->getPosition());
+        return array_merge([
+            'point' => $this->getPoint(),
+            'position' =>  $this->scanner->getPosition(),
+        ]);
     }
 
     public function getCurrentLine()
     {
-        return $this->getLine($this->getPosition()['line']);
+        return $this->getLine($this->getPoint()['line']);
     }
 
     public function getLine($num)
@@ -401,9 +414,9 @@ class Lexer
         return $this->scanner->getLine($num);
     }
 
-    public function getPosition()
+    public function getPoint()
     {
-        return $this->scanner->getPosition();
+        return $this->scanner->getPoint();
     }
 
     public function nextToken()
@@ -440,12 +453,12 @@ class Lexer
                 $token = $this->nextToken();
             } catch (RaisedException $re) {
                 $this->tokens = [];
-                $pos = $this->getPosition();
+                $point = $this->getPoint();
                 $this->tokens[] = [
                     'type' => TokenType::RAISED->value,
                     'value' => $re->getSummary($this),
-                    'line' => $pos['line'],
-                    'column' => $pos['column'],
+                    'line' => $point['line'],
+                    'column' => $point['column'],
                 ];
                 return $this->tokens;
             }
@@ -453,12 +466,12 @@ class Lexer
                 $this->tokens[] = $token;
             }
         }
-        $position = $this->getPosition();
+        $point = $this->getPoint();
         $this->tokens[] = [
             'type' => TokenType::EOF->value,
             'value' => '',
-            'line' => $position['line'],
-            'column' => $position['column'],
+            'line' => $point['line'],
+            'column' => $point['column'],
         ];
 
         return $this->tokens;
