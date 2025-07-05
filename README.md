@@ -4,12 +4,11 @@
 
 _`xlang`_ is a programming language under development, designing everything from scratch `just for fun` to where I can stop the development. This roadmap outlines the milestones and releases for lexical analysis (v0.1.x), syntax and semantic analysis (v0.2.x), intermediate code generation and code optimization (v0.3.x), and target code generation (v0.4.x), implemented in PHP with a custom testing framework. Each milestone builds on the previous, ensuring a stable foundation for future features.
 
-## Milestones
+## Under-Compiler versions
 
-This milestones cover the development roadmap from lexical analyzer (tokenizing) to initial syntax analyzer (parsing) only.
+This under-compiler versions cover the under development versioning from lexical analyzer (tokenizing) to initial syntax analyzer (parsing) processes of the compiler.
 
-- [ ] v0.1.x: Lexeme Sequence & Comment
-- [ ] v0.1.x: Integer Tokenization
+- [ ] v0.1.0: Lexeme sequence: Comment & Integer Tokenization
 - [ ] v0.1.x: Float Tokenization
 - [ ] v0.1.x: Scalar Type Tokenization
 - [ ] v0.1.x: Special Types Tokenization

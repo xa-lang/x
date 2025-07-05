@@ -111,6 +111,12 @@ enum CharCode: int
         return chr($this->value);
     }
 
+    public function isDigit()
+    {
+        return $this->value >= self::DIGIT_ZERO->value
+            && $this->value <= self::DIGIT_NINE->value;
+    }
+
     public function isLineFeed()
     {
         return $this == self::LINE_FEED;
@@ -187,21 +193,7 @@ class Scanner
 
     public function consume()
     {
-        if ($this->position < $this->length) {
-            $charCode = $this->peek();
-            $this->position++;
-            if ($charCode && $charCode->isLineFeed()) {
-                $this->line++;
-                $this->column = 1;
-            } else {
-                $this->column++;
-            }
-
-            $this->lexeme .= $charCode->getText();
-            return $charCode;
-        }
-
-        return null;
+        return $this->move(true);
     }
 
     public function getLine($num = null)
@@ -253,6 +245,27 @@ class Scanner
         return $this->position >= $this->length;
     }
 
+    public function move(bool $shouldAppend = false)
+    {
+        if ($this->position < $this->length) {
+            $charCode = $this->peek();
+            $this->position++;
+            if ($charCode && $charCode->isLineFeed()) {
+                $this->line++;
+                $this->column = 1;
+            } else {
+                $this->column++;
+            }
+
+            if ($shouldAppend) {
+                $this->lexeme .= $charCode->getText();
+            }
+            return $charCode;
+        }
+
+        return null;
+    }
+
     public function peek($offset = 0)
     {
         $pos = $this->position + $offset;
@@ -284,6 +297,7 @@ enum TokenType: int
     case COMMENT = 1;
     case EOF     = 2;
     case RAISED  = 3;
+    case INTEGER = 4;
 
     public function format(array $token)
     {
@@ -386,8 +400,7 @@ class Lexer
         foreach ($tokens as $token) {
             $ttype = TokenType::tryFrom($token['type']);
             if ($ttype && $ttype->isError()) {
-                $str = $token['value'];
-                break;
+                return $token['value'];
             } elseif (!$ttype) {
                 continue;
             }
@@ -398,10 +411,11 @@ class Lexer
 
     public function getInfo()
     {
-        return array_merge([
+        return [
+            'char' => $this->scanner->peek()->getText(),
             'point' => $this->getPoint(),
             'position' =>  $this->scanner->getPosition(),
-        ]);
+        ];
     }
 
     public function getCurrentLine()
@@ -425,9 +439,11 @@ class Lexer
 
         if ($cc == CharCode::SEMICOLON) {
             return $this->scanComment();
+        } elseif ($cc->isDigit()) {
+            return $this->scanNumber();
         }
 
-        throw new RaisedException("Unexpected character at line %{line}");
+        throw new RaisedException("Unexpected character '%{char}' on line %{line}");
     }
 
     private function scanComment()
@@ -438,6 +454,40 @@ class Lexer
         return array_merge([
             'type' => TokenType::COMMENT->value,
         ], $this->scanner->getLexemeInfo());
+    }
+
+    private function scanNumber()
+    {
+        // Consume ?(0-9_) +(0-9_) +(0-9) ?(E ?[+-] +(0-9))
+        $this->scanner->consume();
+        $cc = $this->scanner->peek();
+
+        while (!$this->scanner->isEof() && ($cc->isDigit() || $cc == CharCode::LOW_LINE)) {
+            if ($cc == CharCode::LOW_LINE && !$this->scanner->peek(1)?->isDigit()) {
+                throw new RaisedException("Unexpected character '%{char}' on line %{line}");
+            }
+            $this->scanner->consume();
+            $cc = $this->scanner->peek();
+        }
+
+
+        // Check ?(E ?[+-] +(0-9))
+        if (!$this->scanner->isEof() && ($this->scanner->peek() == CharCode::CAPITAL_LETTER_E)) {
+            $this->scanner->consume();
+
+            if (!$this->scanner->isEof() && !$this->scanner->peek()->isDigit()) {
+                throw new RaisedException("Unexpected character '%{char}' on line %{line}");
+            }
+
+            while (!$this->scanner->isEof() && $this->scanner->peek()->isDigit()) {
+                $this->scanner->consume();
+            }
+        }
+
+        return array_merge(
+            ['type' => TokenType::INTEGER->value],
+            $this->scanner->getLexemeInfo()
+        );
     }
 
     public function tokenize()
