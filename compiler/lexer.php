@@ -298,6 +298,7 @@ enum TokenType: int
     case EOF     = 2;
     case RAISED  = 3;
     case INTEGER = 4;
+    case FLOAT   = 5;
 
     public function format(array $token)
     {
@@ -458,10 +459,11 @@ class Lexer
 
     private function scanNumber()
     {
-        // Consume ?(0-9_) +(0-9_) +(0-9) ?(E ?[+-] +(0-9))
+        // Consume ?(0-9) *(0-9_) +(0-9) ?("."  +(0-9)) +(0-9) ?(E ?[+-] +(0-9))
         $this->scanner->consume();
         $cc = $this->scanner->peek();
 
+        // Consume *(0-9_) +(0-9)
         while (!$this->scanner->isEof() && ($cc->isDigit() || $cc == CharCode::LOW_LINE)) {
             if ($cc == CharCode::LOW_LINE && !$this->scanner->peek(1)?->isDigit()) {
                 throw new RaisedException("Unexpected character '%{char}' on line %{line}");
@@ -470,9 +472,8 @@ class Lexer
             $cc = $this->scanner->peek();
         }
 
-
-        // Check ?(E ?[+-] +(0-9))
-        if (!$this->scanner->isEof() && ($this->scanner->peek() == CharCode::CAPITAL_LETTER_E)) {
+        // Check ?("."  +(0-9))
+        if (!$this->scanner->isEof() && $this->scanner->peek() == CharCode::FULL_STOP) {
             $this->scanner->consume();
 
             if (!$this->scanner->isEof() && !$this->scanner->peek()->isDigit()) {
@@ -484,9 +485,32 @@ class Lexer
             }
         }
 
+        // Check ?(E ?[+-] +(0-9))
+        if (!$this->scanner->isEof() && ($this->scanner->peek() == CharCode::CAPITAL_LETTER_E)) {
+            $this->scanner->consume();
+
+            $cc = $this->scanner->peek();
+            if (!$this->scanner->isEof() && ($cc == CharCode::PLUS_SIGN || $cc == CharCode::HYPHEN_MINUS)) {
+                $this->scanner->consume();
+            }
+
+            if (!$this->scanner->isEof() && !$this->scanner->peek()->isDigit()) {
+                throw new RaisedException("Unexpected character '%{char}' on line %{line}");
+            }
+
+            while (!$this->scanner->isEof() && $this->scanner->peek()->isDigit()) {
+                $this->scanner->consume();
+            }
+        }
+
+        $lInfo = $this->scanner->getLexemeInfo();
         return array_merge(
-            ['type' => TokenType::INTEGER->value],
-            $this->scanner->getLexemeInfo()
+            [
+                'type' => str_contains($lInfo['value'], 'E') || str_contains($lInfo['value'], '.')
+                ? TokenType::FLOAT->value
+                : TokenType::INTEGER->value
+            ],
+            $lInfo
         );
     }
 

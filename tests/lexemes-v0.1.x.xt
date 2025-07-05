@@ -1,0 +1,11 @@
+---TEST---
+Basic Source string tokenization 2
+---SRC---
+123E+4 56E-7 8.09 8.09
+; This is comment, another test
+---EXPECT---
+TYPE: T_FLOAT, VALUE: 123E+4, POINT: [1 1]
+TYPE: T_FLOAT, VALUE: 56E-7, POINT: [1 8]
+TYPE: T_FLOAT, VALUE: 8.09, POINT: [1 14]
+TYPE: T_COMMENT, VALUE: ; This is comment, another test, POINT: [2 1]
+TYPE: T_EOF, VALUE: NULL, POINT: [2 32]
