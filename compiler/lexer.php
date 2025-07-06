@@ -306,6 +306,7 @@ enum TokenType: int
     case INTEGER    = 4;
     case FLOAT      = 5;
     case IDENTIFIER = 6;
+    case KEYWORD    = 7;
 
     public function format(array $token)
     {
@@ -336,6 +337,33 @@ enum TokenType: int
 
     public function isError() {
         return $this == self::RAISED;
+    }
+
+    public static function getType(null|string $lexeme)
+    {
+        if ($lexeme == null) {
+            return self::EOF;
+        }
+
+        if (is_numeric(str_replace('_', '', $lexeme))) {
+            return str_contains($lexeme, 'E') || str_contains($lexeme, '.')
+                ? self::FLOAT
+                : self::INTEGER;
+        }
+
+        if (in_array($lexeme, ['any', 'boolean', 'byte', 'character', 'float', 'integer', 'null', 'void'])) {
+            return self::KEYWORD;
+        }
+
+        if (preg_match('/^[A-Za-z_]([A-Za-z0-9_]*)$/', $lexeme)) {
+            return self::IDENTIFIER;
+        }
+
+        if (preg_match('/^[;]/', $lexeme)) {
+            return self::COMMENT;
+        }
+
+        return self::UNKNOWN;
     }
 }
 
@@ -514,11 +542,7 @@ class Lexer
 
         $lInfo = $this->scanner->getLexemeInfo();
         return array_merge(
-            [
-                'type' => str_contains($lInfo['value'], 'E') || str_contains($lInfo['value'], '.')
-                ? TokenType::FLOAT->value
-                : TokenType::INTEGER->value
-            ],
+            ['type' => TokenType::getType($lInfo['value'])->value],
             $lInfo
         );
     }
@@ -536,7 +560,7 @@ class Lexer
 
         $lInfo = $this->scanner->getLexemeInfo();
         return array_merge(
-            ['type' => TokenType::IDENTIFIER->value],
+            ['type' => TokenType::getType($lInfo['value'])->value],
             $lInfo
         );
     }
