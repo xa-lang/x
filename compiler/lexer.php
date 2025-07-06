@@ -111,6 +111,12 @@ enum CharCode: int
         return chr($this->value);
     }
 
+    public function isAlpha()
+    {
+        return ($this->value >= self::CAPITAL_LETTER_A->value && $this->value <= self::CAPITAL_LETTER_Z->value)
+            || ($this->value >= self::SMALL_LETTER_A->value && $this->value <= self::SMALL_LETTER_Z->value);
+    }
+
     public function isDigit()
     {
         return $this->value >= self::DIGIT_ZERO->value
@@ -293,12 +299,13 @@ class Scanner
  */
 enum TokenType: int
 {
-    case UNKNOWN = 0;
-    case COMMENT = 1;
-    case EOF     = 2;
-    case RAISED  = 3;
-    case INTEGER = 4;
-    case FLOAT   = 5;
+    case UNKNOWN    = 0;
+    case COMMENT    = 1;
+    case EOF        = 2;
+    case RAISED     = 3;
+    case INTEGER    = 4;
+    case FLOAT      = 5;
+    case IDENTIFIER = 6;
 
     public function format(array $token)
     {
@@ -442,6 +449,8 @@ class Lexer
             return $this->scanComment();
         } elseif ($cc->isDigit()) {
             return $this->scanNumber();
+        } elseif ($cc->isAlpha() || $cc == CharCode::LOW_LINE) {
+            return $this->scanWord();
         }
 
         throw new RaisedException("Unexpected character '%{char}' on line %{line}");
@@ -459,7 +468,7 @@ class Lexer
 
     private function scanNumber()
     {
-        // Consume ?(0-9) *(0-9_) +(0-9) ?("."  +(0-9)) +(0-9) ?(E ?[+-] +(0-9))
+        // Consume *1(0-9) *(0-9_) +(0-9) ?("."  +(0-9)) +(0-9) ?(E ?[+-] +(0-9))
         $this->scanner->consume();
         $cc = $this->scanner->peek();
 
@@ -510,6 +519,24 @@ class Lexer
                 ? TokenType::FLOAT->value
                 : TokenType::INTEGER->value
             ],
+            $lInfo
+        );
+    }
+
+    private function scanWord()
+    {
+        // Consume *1(A-Za-z) *(0-9A-Za-z_)
+        $this->scanner->consume();
+
+        $cc = $this->scanner->peek();
+        while (!$this->scanner->isEof() && ($cc->isAlpha() || $cc->isDigit() || $cc == CharCode::LOW_LINE)) {
+            $this->scanner->consume();
+            $cc = $this->scanner->peek();
+        }
+
+        $lInfo = $this->scanner->getLexemeInfo();
+        return array_merge(
+            ['type' => TokenType::IDENTIFIER->value],
             $lInfo
         );
     }
