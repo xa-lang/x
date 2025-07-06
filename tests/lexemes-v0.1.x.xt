@@ -1,11 +1,27 @@
 ---TEST---
 Basic Source string tokenization 2
 ---SRC---
-123E+4 56E-7 8.09 8.09
+123E+4 56E-7 8.09 x xlang x_lang xLang x_
+_      boolean    integer float  byte  char
+void   any        null
 ; This is comment, another test
 ---EXPECT---
 TYPE: T_FLOAT, VALUE: 123E+4, POINT: [1 1]
 TYPE: T_FLOAT, VALUE: 56E-7, POINT: [1 8]
 TYPE: T_FLOAT, VALUE: 8.09, POINT: [1 14]
-TYPE: T_COMMENT, VALUE: ; This is comment, another test, POINT: [2 1]
-TYPE: T_EOF, VALUE: NULL, POINT: [2 32]
+TYPE: T_IDENTIFIER, VALUE: x, POINT: [1 19]
+TYPE: T_IDENTIFIER, VALUE: xlang, POINT: [1 21]
+TYPE: T_IDENTIFIER, VALUE: x_lang, POINT: [1 27]
+TYPE: T_IDENTIFIER, VALUE: xLang, POINT: [1 34]
+TYPE: T_IDENTIFIER, VALUE: x_, POINT: [1 40]
+TYPE: T_IDENTIFIER, VALUE: _, POINT: [2 1]
+TYPE: T_IDENTIFIER, VALUE: boolean, POINT: [2 8]
+TYPE: T_IDENTIFIER, VALUE: integer, POINT: [2 19]
+TYPE: T_IDENTIFIER, VALUE: float, POINT: [2 27]
+TYPE: T_IDENTIFIER, VALUE: byte, POINT: [2 34]
+TYPE: T_IDENTIFIER, VALUE: char, POINT: [2 40]
+TYPE: T_IDENTIFIER, VALUE: void, POINT: [3 1]
+TYPE: T_IDENTIFIER, VALUE: any, POINT: [3 8]
+TYPE: T_IDENTIFIER, VALUE: null, POINT: [3 19]
+TYPE: T_COMMENT, VALUE: ; This is comment, another test, POINT: [4 1]
+TYPE: T_EOF, VALUE: NULL, POINT: [4 32]
