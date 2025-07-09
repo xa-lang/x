@@ -8,16 +8,10 @@ _`xlang`_ is a programming language under development, designing everything from
 
 This under-compiler versions cover the under development versioning from lexical analyzer (tokenizing) to initial syntax analyzer (parsing) processes of the compiler.
 
-- [ ] v0.1.0: Lexeme sequence: Comment & Integer Tokenization
-- [ ] v0.1.x: Float Tokenization
-- [ ] v0.1.x: Scalar Type Tokenization
-- [ ] v0.1.x: Special Types Tokenization
-- [ ] v0.1.x: Number Symbol Tokenization
-- [ ] v0.1.x: Enclosed Symbols Tokenization
-- [ ] v0.1.x: Unary Operators Tokenization
-- [ ] v0.1.x: Separators Symbol Tokenization
-- [ ] v0.1.x: Binary Operators Tokenization
-- [ ] v0.1.x: Variable Assignment Tokenization
+- [x] v0.1.0: Lexeme sequence: Comment & Integer Tokenization
+- [x] v0.1.1: Scalar types, Special type, & Identifier Tokenization
+- [ ] v0.1.x: Enclosed Symbols & String Tokenization
+- [ ] v0.1.x: Unary Operators, & Binary Operators Tokenization
 - [ ] v0.1.x: Label and Entry Label Tokenization
 - [ ] v0.1.x: Function & Lambda Tokenization
 - [ ] v0.2.x: Initial Tree Intermediate Representation (IR) Parsing
